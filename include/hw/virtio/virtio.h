@@ -22,6 +22,13 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 
+/* Enable shadow VRING */
+#define SHADOW_VRING
+/* Enable shadow DMA */
+#define SHADOW_DMA
+
+#define SHADOW_HVA_OFFSET (0x800000000UL)
+
 /* A guest should never accept this.  It implies negotiation is broken. */
 #define VIRTIO_F_BAD_FEATURE		30
 
@@ -253,6 +260,9 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num);
 int virtio_queue_get_num(VirtIODevice *vdev, int n);
 int virtio_queue_get_max_num(VirtIODevice *vdev, int n);
 int virtio_get_num_queues(VirtIODevice *vdev);
+#ifdef SHADOW_VRING
+void virtio_queue_set_shadow_rings(VirtIODevice *vdev);
+#endif
 void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
                             hwaddr avail, hwaddr used);
 void virtio_queue_update_rings(VirtIODevice *vdev, int n);
@@ -275,11 +285,15 @@ typedef struct virtio_input_conf virtio_input_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
+/* 
+ * For simplicity of the implementation of the prototype,
+ * we disable INDIRECT_DESC and EVENT_IDX features.
+ */
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
     DEFINE_PROP_BIT64("indirect_desc", _state, _field,    \
-                      VIRTIO_RING_F_INDIRECT_DESC, true), \
+                      VIRTIO_RING_F_INDIRECT_DESC, false), \
     DEFINE_PROP_BIT64("event_idx", _state, _field,        \
-                      VIRTIO_RING_F_EVENT_IDX, true),     \
+                      VIRTIO_RING_F_EVENT_IDX, false),     \
     DEFINE_PROP_BIT64("notify_on_empty", _state, _field,  \
                       VIRTIO_F_NOTIFY_ON_EMPTY, true), \
     DEFINE_PROP_BIT64("any_layout", _state, _field, \

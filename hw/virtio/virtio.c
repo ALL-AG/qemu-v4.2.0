@@ -200,6 +200,11 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     if (old) {
         call_rcu(old, virtio_free_region_cache, rcu);
     }
+#ifdef SHADOW_VRING
+    if (!strcmp(vdev->name, "virtio-blk") || !strcmp(vdev->name, "virtio-net")) {
+        virtio_queue_set_shadow_rings(vdev);
+    }
+#endif
     return;
 
 err_avail:
@@ -624,6 +629,11 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
     for (i = 0; i < elem->in_num; i++) {
         size_t size = MIN(len - offset, elem->in_sg[i].iov_len);
 
+#ifdef SHADOW_DMA
+        hwaddr addr = ((hwaddr)elem->in_sg[i].iov_base & ~(SHADOW_HVA_OFFSET));
+        elem->in_sg[i].iov_base = (void *)elem->in_addr[i];
+        elem->in_addr[i] = addr;
+#endif
         dma_memory_unmap(dma_as, elem->in_sg[i].iov_base,
                          elem->in_sg[i].iov_len,
                          DMA_DIRECTION_FROM_DEVICE, size);
@@ -631,11 +641,17 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
         offset += size;
     }
 
-    for (i = 0; i < elem->out_num; i++)
+    for (i = 0; i < elem->out_num; i++) {
+#ifdef SHADOW_DMA
+        hwaddr addr = ((hwaddr)elem->out_sg[i].iov_base & ~(SHADOW_HVA_OFFSET));
+        elem->out_sg[i].iov_base = (void *)elem->out_addr[i];
+        elem->out_addr[i] = addr;
+#endif
         dma_memory_unmap(dma_as, elem->out_sg[i].iov_base,
                          elem->out_sg[i].iov_len,
                          DMA_DIRECTION_TO_DEVICE,
                          elem->out_sg[i].iov_len);
+    }
 }
 
 /* virtqueue_detach_element:
@@ -1257,7 +1273,6 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
 
         iov[num_sg].iov_len = len;
         addr[num_sg] = pa;
-
         sz -= len;
         pa += len;
         num_sg++;
@@ -1449,10 +1464,20 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     elem->index = head;
     elem->ndescs = 1;
     for (i = 0; i < out_num; i++) {
+#ifdef SHADOW_DMA
+        hwaddr iov_base = (hwaddr)iov[i].iov_base;
+        iov[i].iov_base = (void *)(addr[i] + SHADOW_HVA_OFFSET);
+        addr[i] = iov_base;
+#endif
         elem->out_addr[i] = addr[i];
         elem->out_sg[i] = iov[i];
     }
     for (i = 0; i < in_num; i++) {
+#ifdef SHADOW_DMA
+        hwaddr iov_base = (hwaddr)iov[out_num + i].iov_base;
+        iov[out_num + i].iov_base = (void *)(addr[out_num + i] + SHADOW_HVA_OFFSET);
+        addr[out_num + i] = iov_base;
+#endif
         elem->in_addr[i] = addr[out_num + i];
         elem->in_sg[i] = iov[out_num + i];
     }
@@ -2146,6 +2171,22 @@ hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.desc;
 }
+
+#ifdef SHADOW_VRING
+void virtio_queue_set_shadow_rings(VirtIODevice *vdev)
+{
+    int n = vdev->queue_sel;
+    hwaddr desc, avail, used;
+
+    desc = vdev->vq[n].vring.desc;
+    avail = vdev->vq[n].vring.avail;
+    used = vdev->vq[n].vring.used;
+
+    vdev->vq[n].vring.caches->desc.ptr = (void *)(SHADOW_HVA_OFFSET + desc);
+    vdev->vq[n].vring.caches->avail.ptr = (void *)(SHADOW_HVA_OFFSET + avail);
+    vdev->vq[n].vring.caches->used.ptr = (void *)(SHADOW_HVA_OFFSET + used);
+}
+#endif
 
 void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
                             hwaddr avail, hwaddr used)

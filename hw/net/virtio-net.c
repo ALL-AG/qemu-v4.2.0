@@ -3166,6 +3166,10 @@ static const VMStateDescription vmstate_virtio_net = {
     .dev_unplug_pending = dev_unplug_pending,
 };
 
+/* 
+ * For simplicity of the implementation of TwinVisor's prototype, 
+ * we disables some optional features here. (e.g., disable ctrl_vq)
+ */
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT64("csum", VirtIONet, host_features,
                     VIRTIO_NET_F_CSUM, true),
@@ -3181,7 +3185,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT64("guest_ufo", VirtIONet, host_features,
                     VIRTIO_NET_F_GUEST_UFO, true),
     DEFINE_PROP_BIT64("guest_announce", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_ANNOUNCE, true),
+                    VIRTIO_NET_F_GUEST_ANNOUNCE, false),
     DEFINE_PROP_BIT64("host_tso4", VirtIONet, host_features,
                     VIRTIO_NET_F_HOST_TSO4, true),
     DEFINE_PROP_BIT64("host_tso6", VirtIONet, host_features,
@@ -3195,17 +3199,17 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT64("status", VirtIONet, host_features,
                     VIRTIO_NET_F_STATUS, true),
     DEFINE_PROP_BIT64("ctrl_vq", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_VQ, true),
+                    VIRTIO_NET_F_CTRL_VQ, false),
     DEFINE_PROP_BIT64("ctrl_rx", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_RX, true),
+                    VIRTIO_NET_F_CTRL_RX, false),
     DEFINE_PROP_BIT64("ctrl_vlan", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_VLAN, true),
+                    VIRTIO_NET_F_CTRL_VLAN, false),
     DEFINE_PROP_BIT64("ctrl_rx_extra", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_RX_EXTRA, true),
+                    VIRTIO_NET_F_CTRL_RX_EXTRA, false),
     DEFINE_PROP_BIT64("ctrl_mac_addr", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_MAC_ADDR, true),
+                    VIRTIO_NET_F_CTRL_MAC_ADDR, false),
     DEFINE_PROP_BIT64("ctrl_guest_offloads", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, true),
+                    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, false),
     DEFINE_PROP_BIT64("mq", VirtIONet, host_features, VIRTIO_NET_F_MQ, false),
     DEFINE_PROP_BIT64("guest_rsc_ext", VirtIONet, host_features,
                     VIRTIO_NET_F_RSC_EXT, false),
